@@ -32,6 +32,10 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
         fetch(:always_compile_assets, false) || ENV['COMPILE_ASSETS'] == 'true'
       end
 
+      def cached_copy
+        File.join(shared_path, fetch(:repository_cache, "cached-copy"))
+      end
+
       def assets_dirty?
         r = safe_current_revision
         return true if r.nil?
@@ -40,7 +44,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
         asset_changing_files = asset_changing_files.select do |f|
           File.exists? f
         end
-        capture("cd #{latest_release} && #{source.local.log(current_revision, source.local.head)} #{asset_changing_files.join(" ")} | wc -l").to_i > 0
+        capture("cd #{cached_copy} && #{source.local.log(current_revision, source.local.head)} #{asset_changing_files.join(" ")} | wc -l").to_i > 0
       end
     end
   end
