@@ -1,6 +1,11 @@
 require 'git'
 require 'grit'
 
+require 'uri'
+require 'net/http'
+require 'net/https'
+require 'json'
+
 # Bump up grit limits since git.fetch can take a lot
 Grit::Git.git_timeout = 600 # seconds
 Grit::Git.git_max_size = 104857600 # 100 megs
@@ -90,12 +95,31 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
 
     # See this article for info on how this works:
     # http://stackoverflow.com/questions/3005392/git-how-can-i-tell-if-one-commit-is-a-descendant-of-another-commit
-    if ENV['REVERSE_DEPLOY_OK'].nil?
+    if ENV['REVERSE_DEPLOY_OK'].nil? && ENV['FORCE_DEPLOY'].nil?
       if safe_current_revision && git.merge_base({}, deploy_sha, safe_current_revision).chomp != git.rev_parse({ :verify => true }, safe_current_revision).chomp
         unless continue_with_reverse_deploy(deploy_sha)
           raise "You are trying to deploy #{deploy_sha}, which does not contain #{safe_current_revision}," + \
             " the commit currently running.  Operation aborted for your safety." + \
             " Set REVERSE_DEPLOY_OK to override."
+        end
+      end
+    end
+
+    # Check if we can deploy this (passed CI server test)
+    if ENV['FORCE_DEPLOY'].nil?
+      sha = deploy_sha
+      uri = URI("https://api.github.com/repos/PagerDuty/web/statuses/#{sha}")
+      Net::HTTP.start(uri.host, uri.port, :use_ssl => true) do |http|
+        req = Net::HTTP::Get.new(uri.request_uri)
+        req.add_field('Authorization', github_oauth_token)
+
+        resp = http.request(req)
+
+        j = JSON.parse(resp.body)
+        if j.length < 1 || j.first['state'] != 'success'
+          raise "You're trying to deploy #{sha} which didn't pass the unit " +\
+            "tests!  Maybe it just hasn't passed yet, or maybe you screwed " +\
+            'up.  If you absolutely must deploy, try setting FORCE_DEPLOY=1.'
         end
       end
     end
