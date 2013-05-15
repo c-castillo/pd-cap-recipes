@@ -52,14 +52,15 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
 
     task :update_tag_for_stage do
       git = Grit::Git.new(File.join('.', '.git'))
+      stage = config[:stage].sub(':', '-')
 
       # Clear previous pointer if exists. Ignore errors here.
-      git.tag(:d => config[:stage])
-      git.push({}, 'origin', ":refs/tags/#{config[:stage]}")
+      git.tag(:d => stage)
+      git.push({}, 'origin', ":refs/tags/#{stage}")
 
       # Set new pointer to current HEAD.
-      git.tag({}, config[:stage])
-      git.push({}, 'origin', "refs/tags/#{config[:stage]}")
+      git.tag({}, stage)
+      git.push({}, 'origin', "refs/tags/#{stage}")
     end
 
     task :validate_branch_is_tag do
