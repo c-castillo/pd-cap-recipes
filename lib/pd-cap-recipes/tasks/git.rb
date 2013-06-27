@@ -80,13 +80,13 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
       raise "Invalid tag name: #{tag}" 
     end
 
-    tag_sha = repo.commit(tag).id
+    #tag_sha = repo.commit(tag).id
     deploy_sha = repo.head.commit.id
-
-    if tag_sha != deploy_sha
-      raise "Cannot deploy tag #{tag}. Does not match head SHA of #{deploy_sha}." + \
-        " Please checkout the tag with: `git checkout #{tag}` and deploy again."
-    end
+    #
+    #if tag_sha != deploy_sha
+    #  raise "Cannot deploy tag #{tag}. Does not match head SHA of #{deploy_sha}." + \
+    #    " Please checkout the tag with: `git checkout #{tag}` and deploy again."
+    #end
 
     # See this article for info on how this works:
     # http://stackoverflow.com/questions/3005392/git-how-can-i-tell-if-one-commit-is-a-descendant-of-another-commit
