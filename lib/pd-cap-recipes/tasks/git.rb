@@ -6,7 +6,7 @@ Grit::Git.git_timeout = 600 # seconds
 Grit::Git.git_max_size = 104857600 # 100 megs
 
 class GitRepo
-  def initalize
+  def initialize
     @git = Grit::Git.new(File.join('.', '.git'))
   end
 
