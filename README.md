@@ -2,6 +2,11 @@
 
 These are various capistrano recipes used at [PagerDuty Inc.](http://www.pagerduty.com/). Feel free to fork and contribute to them.
 
+## Running tests
+
+    $ bundle install
+    $ bundle exec rspec spec
+
 ## Install
 
 Add the following to your Gemfile.
