@@ -5,6 +5,27 @@ require 'grit'
 Grit::Git.git_timeout = 600 # seconds
 Grit::Git.git_max_size = 104857600 # 100 megs
 
+class GitRepo
+  def initalize
+    @git = Grit::Git.new(File.join('.', '.git'))
+  end
+
+  def method_missing(*args, &block)
+    @git.__send__(*args, &block)
+  end
+
+  def deleteRemoteTag(tag)
+    @git.tag d: tag
+    @git.push({}, 'origin', ":refs/tags/#{tag}")
+  end
+
+  def remoteTag(tag)
+    @git.tag({}, tag)
+    @git.push({}, 'origin', ":refs/tags/#{tag}")
+  end
+
+end
+
 Capistrano::Configuration.instance(:must_exist).load do |config|
   namespace :deploy do
     desc 'Cut a tag for deployment'
@@ -22,14 +43,13 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
     task :cut_tag do
       repo = Grit::Repo.new('.')
 
-      git = Grit::Git.new(File.join('.', '.git'))
+      git = GitRepo.new
       raise "You are currently in a detached head state. Cannot cut tag." if !repo.head
 
       git.fetch
 
       new_tag = "#{repo.head.name}-#{Time.now.utc.to_i}"
-      git.tag({}, new_tag)
-      git.push({}, 'origin', "refs/tags/#{new_tag}")
+      git.remoteTag new_tag
 
       Capistrano::CLI.ui.say "Your new tag is #{green new_tag}" 
       Capistrano::CLI.ui.say "You can deploy the tag by running:\n  bundle exec cap #{stage} deploy -s tag=#{new_tag}" 
@@ -51,15 +71,13 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
     end
 
     task :update_tag_for_stage do
-      git = Grit::Git.new(File.join('.', '.git'))
+      git = GitRepo.new
 
       # Clear previous pointer if exists. Ignore errors here.
-      git.tag(:d => config[:stage])
-      git.push({}, 'origin', ":refs/tags/#{config[:stage]}")
+      git.deleteRemoteTag config[:stage]
 
       # Set new pointer to current HEAD.
-      git.tag({}, config[:stage])
-      git.push({}, 'origin', "refs/tags/#{config[:stage]}")
+      git.remoteTag config[:stage]
     end
 
     task :validate_branch_is_tag do
@@ -73,7 +91,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
   end
 
   def git_sanity_check(tag)
-    git  = Grit::Git.new(File.join('.', '.git'))
+    git  = GitRepo.new
     deploy_sha = git.show_ref({raise: true}, '-s', tag)
 
     # See this article for info on how this works:
