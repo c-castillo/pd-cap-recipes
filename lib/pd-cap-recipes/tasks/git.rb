@@ -72,12 +72,11 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
 
     task :update_tag_for_stage do
       git = GitRepo.new
+      env = config[:stage]
 
-      # Clear previous pointer if exists. Ignore errors here.
-      git.deleteRemoteTag config[:stage]
-
-      # Set new pointer to current HEAD.
-      git.remoteTag config[:stage]
+      git.deleteRemoteTag env
+      git.remoteTag env
+      git.remoteTag "$$#{env}$$#{Time.now.utc.to_i}"
     end
 
     task :validate_branch_is_tag do
