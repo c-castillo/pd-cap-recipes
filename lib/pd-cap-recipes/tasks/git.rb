@@ -21,7 +21,7 @@ class GitRepo
 
   def remoteTag(tag)
     @git.tag({}, tag)
-    @git.push({}, 'origin', ":refs/tags/#{tag}")
+    @git.push({}, 'origin', "refs/tags/#{tag}")
   end
 
 end
