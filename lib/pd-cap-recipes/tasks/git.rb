@@ -91,7 +91,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
 
   def git_sanity_check(tag)
     git  = GitRepo.new
-    deploy_sha = git.show_ref({raise: true}, '-s', tag)
+    deploy_sha = git.show_ref({raise: true}, '-s', tag).chomp
 
     # See this article for info on how this works:
     # http://stackoverflow.com/questions/3005392/git-how-can-i-tell-if-one-commit-is-a-descendant-of-another-commit
