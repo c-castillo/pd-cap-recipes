@@ -14,12 +14,12 @@ class GitRepo
     @git.__send__(*args, &block)
   end
 
-  def deleteRemoteTag(tag)
+  def delete_remote_tag(tag)
     @git.tag d: tag
     @git.push({}, 'origin', ":refs/tags/#{tag}")
   end
 
-  def remoteTag(tag)
+  def remote_tag(tag)
     @git.tag({}, tag)
     @git.push({}, 'origin', "refs/tags/#{tag}")
   end
@@ -32,6 +32,20 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
     task :prepare do
       git.cut_tag
     end
+  end
+
+
+  after "rollback", "deploy"
+  desc "Rolls back to not but last deploy"
+  task :rollback do
+    git = GitRepo.new
+    env = config[:stage]
+    tags_from_current_environment = git.tag(l: "DEPLOYED---#{env}---*").split
+    total = tags_from_current_environment.size
+    raise "Cannot rollback as there are only #{total} deployments to #{env}" if total < 2
+    tag_to_rollback_to = tags_from_current_environment[-2]
+    Capistrano::CLI.ui.say "Rolling back to #{tag_to_rollback_to}"
+    config[:tag] = tag_to_rollback_to
   end
 
   after "deploy:symlink", "git:update_tag_for_stage"
@@ -49,7 +63,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
       git.fetch
 
       new_tag = "#{repo.head.name}-#{Time.now.utc.to_i}"
-      git.remoteTag new_tag
+      git.remote_tag new_tag
 
       Capistrano::CLI.ui.say "Your new tag is #{green new_tag}" 
       Capistrano::CLI.ui.say "You can deploy the tag by running:\n  bundle exec cap #{stage} deploy -s tag=#{new_tag}" 
@@ -74,9 +88,9 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
       git = GitRepo.new
       env = config[:stage]
 
-      git.deleteRemoteTag env
-      git.remoteTag env
-      git.remoteTag "$$#{env}$$#{Time.now.utc.to_i}"
+      git.delete_remote_tag env
+      git.remote_tag env
+      git.remote_tag "DEPLOYED---#{env}---#{Time.now.utc.to_i}"
     end
 
     task :validate_branch_is_tag do
