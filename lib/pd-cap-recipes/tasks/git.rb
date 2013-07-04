@@ -5,12 +5,47 @@ require 'grit'
 Grit::Git.git_timeout = 600 # seconds
 Grit::Git.git_max_size = 104857600 # 100 megs
 
+class GitRepo
+  def initialize
+    @git = Grit::Git.new(File.join('.', '.git'))
+  end
+
+  def method_missing(*args, &block)
+    @git.__send__(*args, &block)
+  end
+
+  def delete_remote_tag(tag)
+    @git.tag d: tag
+    @git.push({}, 'origin', ":refs/tags/#{tag}")
+  end
+
+  def remote_tag(tag)
+    @git.tag({}, tag)
+    @git.push({}, 'origin', "refs/tags/#{tag}")
+  end
+
+end
+
 Capistrano::Configuration.instance(:must_exist).load do |config|
   namespace :deploy do
     desc 'Cut a tag for deployment'
     task :prepare do
       git.cut_tag
     end
+  end
+
+
+  after "rollback", "deploy"
+  desc "Rolls back to not but last deploy"
+  task :rollback do
+    git = GitRepo.new
+    env = config[:stage]
+    tags_from_current_environment = git.tag(l: "DEPLOYED---#{env}---*").split
+    total = tags_from_current_environment.size
+    raise "Cannot rollback as there are only #{total} deployments to #{env}" if total < 2
+    tag_to_rollback_to = tags_from_current_environment[-2]
+    Capistrano::CLI.ui.say "Rolling back to #{tag_to_rollback_to}"
+    config[:tag] = tag_to_rollback_to
   end
 
   after "deploy:symlink", "git:update_tag_for_stage"
@@ -22,14 +57,13 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
     task :cut_tag do
       repo = Grit::Repo.new('.')
 
-      git = Grit::Git.new(File.join('.', '.git'))
+      git = GitRepo.new
       raise "You are currently in a detached head state. Cannot cut tag." if !repo.head
 
       git.fetch
 
       new_tag = "#{repo.head.name}-#{Time.now.utc.to_i}"
-      git.tag({}, new_tag)
-      git.push({}, 'origin', "refs/tags/#{new_tag}")
+      git.remote_tag new_tag
 
       Capistrano::CLI.ui.say "Your new tag is #{green new_tag}" 
       Capistrano::CLI.ui.say "You can deploy the tag by running:\n  bundle exec cap #{stage} deploy -s tag=#{new_tag}" 
@@ -51,15 +85,12 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
     end
 
     task :update_tag_for_stage do
-      git = Grit::Git.new(File.join('.', '.git'))
+      git = GitRepo.new
+      env = config[:stage]
 
-      # Clear previous pointer if exists. Ignore errors here.
-      git.tag(:d => config[:stage])
-      git.push({}, 'origin', ":refs/tags/#{config[:stage]}")
-
-      # Set new pointer to current HEAD.
-      git.tag({}, config[:stage])
-      git.push({}, 'origin', "refs/tags/#{config[:stage]}")
+      git.delete_remote_tag env
+      git.remote_tag env
+      git.remote_tag "DEPLOYED---#{env}---#{Time.now.utc.to_i}"
     end
 
     task :validate_branch_is_tag do
@@ -73,20 +104,8 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
   end
 
   def git_sanity_check(tag)
-    repo = Grit::Repo.new('.')
-    git  = Grit::Git.new(File.join('.', '.git'))
-
-    if repo.tags.select {|t| t.name == tag }.size == 0
-      raise "Invalid tag name: #{tag}" 
-    end
-
-    tag_sha = repo.commit(tag).id
-    deploy_sha = repo.head.commit.id
-
-    if tag_sha != deploy_sha
-      raise "Cannot deploy tag #{tag}. Does not match head SHA of #{deploy_sha}." + \
-        " Please checkout the tag with: `git checkout #{tag}` and deploy again."
-    end
+    git  = GitRepo.new
+    deploy_sha = git.show_ref({raise: true}, '-s', tag).chomp
 
     # See this article for info on how this works:
     # http://stackoverflow.com/questions/3005392/git-how-can-i-tell-if-one-commit-is-a-descendant-of-another-commit
