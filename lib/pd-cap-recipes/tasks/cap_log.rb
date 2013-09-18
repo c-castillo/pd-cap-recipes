@@ -15,11 +15,12 @@ module Capistrano
     def log(level, message, line_prefix=nil)
       if level <= self.level
         indent = "%*s" % [MAX_LEVEL, "*" * (MAX_LEVEL - level)]
+        now = "[#{Time.now}]"
         (RUBY_VERSION >= "1.9" ? message.lines : message).each do |line|
           msg = if line_prefix
-                  "#{indent} [#{line_prefix}] #{line.strip}\n"
+                  "#{indent} #{now} [#{line_prefix}] #{line.strip}\n"
                 else
-                  "#{indent} #{line.strip}\n"
+                  "#{indent} #{now} #{line.strip}\n"
                 end
           puts msg if @console_output
           device.puts msg
