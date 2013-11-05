@@ -1,8 +1,15 @@
 require 'spec_helper'
 
 describe "JIRA updates", :recipe => true, :tag => true do
-  it "should always define a valid From email address" do
-    config.jira_email.should match("([a-z,0-9].*)@pagerduty.com")
+  before(:each) do
+    config.set :jira_from_domain, "example.com"
+    config.set :jira_default_from_address, "user@example.com"
+    config.set :jira_to_address, "jira@example.com"
+    config.set :stage, "testing"
+  end
+
+  it "should always define a From email address" do
+    config.jira_from_address.should eq("user@example.com")
   end
 
   it "should always define a deployment name" do

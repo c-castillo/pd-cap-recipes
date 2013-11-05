@@ -70,6 +70,9 @@ The other feature is pushing your assets to a CDN using rsync. You can enable th
 
 You'll have to make sure that rsync can access your CDN without being prompter for a password.
 
+### JIRA
+
+If you use JIRA for issue tracking, you can update issues by referencing them in a deploy comment
 
 ### Benchmarking your deploys
 

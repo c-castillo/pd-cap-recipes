@@ -1,22 +1,37 @@
+# A JIRA notification Capistrano task
+#
+# Does what it says on the tin - sends an email to your JIRA issue tracker
+# for every issue you mention in a deploy message.  Assumes you're also
+# using the Comment task.
+#
+# Variables to set in your config/deploy.rb:
+#
+# jira_default_from_address = "dev@example.com"
+# jira_from_domain = "example.com"
+# jira_mail_config = { standard Mail config hash }
+# jira_to_address = "jira@tracker.example.com"
+#
+
 Capistrano::Configuration.instance(:must_exist).load do |config|
   namespace :email do
-    desc "Send email to JIRA via Mailgun SMTP"
+    desc "Send email to JIRA via SMTP"
     task :notify_jira do
-      # This follows the same convention as cap_gun, and uses the prod config
-      # to figure out what creds to use with Mailgun.
-      mail_config = HashWithIndifferentAccess.new(YAML.load_file('config/drivers/mailgun.yml')['production']).symbolize_keys
+
+      mail_config = HashWithIndifferentAccess.new(jira_mail_config).symbolize_keys
       Mail.defaults do
         delivery_method :smtp, mail_config
       end
 
-      as_user = jira_email
-      message = jira_message
-      jira_issues = find_jira_issues(message)
+      to_address   = jira_to_address
+      from_address = jira_from_address
+      message      = jira_message
+      jira_issues  = find_jira_issues(message)
+
       jira_issues.each do |issue|
-        puts 'Updating JIRA issue ' + issue + ' with this deploy note as ' + as_user
+        puts 'Updating JIRA issue ' + issue + ' with this deploy note'
         Mail.deliver do
-          to 'jira@pagerduty.atlassian.net'
-          from as_user
+          to to_address
+          from from_address
           subject issue
           body message
         end
@@ -31,14 +46,16 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
   end
 
   def find_jira_issues(to_check)
+    # FYI: This regex tries to balance between the overly-broad standard JIRA issue
+    # ID, and what is in common use.  (ABC-123, etc).  Improvements welcomed.
     to_check.scan(/[A-Z]{2,4}-[0-9]{1,5}/)
   end
 
-  def jira_email
-    if (u = %x{git config user.email}.strip) =~ /pagerduty.com/
+  def jira_from_address
+    if (u = %x{git config user.email}.strip) =~ /#{jira_from_domain}/
       u
     else
-      "jira@pagerduty.com"
+      jira_default_from_address
     end
   end
 
