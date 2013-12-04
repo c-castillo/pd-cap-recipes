@@ -48,7 +48,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
   def find_jira_issues(to_check)
     # FYI: This regex tries to balance between the overly-broad standard JIRA issue
     # ID, and what is in common use.  (ABC-123, etc).  Improvements welcomed.
-    to_check.scan(/[A-Z]{2,4}-[0-9]{1,5}/)
+    to_check.scan(/[a-z,A-Z]{2,4}-[0-9]{1,5}/)
   end
 
   def jira_from_address
