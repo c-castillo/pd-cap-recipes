@@ -62,7 +62,7 @@ Capistrano::Configuration.instance(:must_exist).load do |config|
 
       git.fetch
 
-      new_tag = "#{repo.head.name}-#{Time.now.utc.to_i}"
+      new_tag = "deploy-#{Time.now.utc.strftime('%Y_%m_%d-%H_%M_%S')}-#{repo.head.name}"
       git.remote_tag new_tag
 
       Capistrano::CLI.ui.say "Your new tag is #{green new_tag}" 
